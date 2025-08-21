@@ -1,0 +1,40 @@
+# Ambiente virtual
+.venv/
+venv/
+
+# Dependências Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# Configurações locais / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos temporários
+.DS_Store
+Thumbs.db
+*.log
+
+# Arquivos de build
+dist/
+build/
+*.egg-info/
+
+# Arquivos do sistema
+*.bak
+*.tmp
+
+# Ambiente Jupyter (se for usar)
+.ipynb_checkpoints/
+
+# Dados sensíveis
+.env
+
+# PDFs ou uploads de teste (se você fez upload na API e salvou local)
+uploads/
+*.pdf

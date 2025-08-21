@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+spacy
+sentence-transformers
+pdfplumber
+torch
+language-tool-python
+scikit-learn

@@ -1,0 +1,11 @@
+Python
+JavaScript
+SQL
+Docker
+Machine Learning
+AWS
+React
+Node.js
+Kubernetes
+C#
+Git
