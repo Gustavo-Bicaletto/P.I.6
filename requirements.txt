@@ -2,3 +2,5 @@ pymongo[srv]==4.8.0
 numpy==2.1.1
 python-dotenv==1.0.1
 spacy==3.7.5
+PyPDF2==3.0.1
+tqdm==4.66.5
