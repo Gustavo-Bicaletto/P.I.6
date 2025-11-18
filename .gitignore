@@ -7,9 +7,6 @@ __pycache__/
 *.pyo
 *.pyd
 
-# ML Models (too large for Git)
-models/
-
 # Training data
 data/training/
 
