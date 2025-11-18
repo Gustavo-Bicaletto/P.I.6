@@ -1,2 +1,18 @@
 .env
 .venv
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ML Models (too large for Git)
+models/
+
+# Training data
+data/training/
+
+# Archives
+*.tar.gz
+*.zip

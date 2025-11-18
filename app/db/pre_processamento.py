@@ -223,30 +223,193 @@ def extract_skills(text: str) -> List[str]:
 
 # ======================== EXTRAÇÃO DE EXPERIÊNCIAS ========================
 
+def normalize_fragmented_dates(text: str) -> str:
+    """
+    Normaliza datas fragmentadas que aparecem em linhas separadas.
+    Exemplos: 
+    - "July 2011\n \nto \nNovember 2012" -> "July 2011 to November 2012"
+    - "10/2012\n \nto \n11/2015" -> "10/2012 to 11/2015"
+    """
+    lines = text.split('\n')
+    result = []
+    skip_until = -1
+    
+    for i in range(len(lines)):
+        if i < skip_until:
+            continue
+            
+        line = lines[i].strip()
+        
+        # Padrões: "Month Year" OU "MM/YYYY"
+        month_year = re.match(r'^((?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4})$', line, re.IGNORECASE)
+        mm_yyyy = re.match(r'^((?:0?[1-9]|1[0-2])/\d{4})$', line)
+        
+        if month_year or mm_yyyy:
+            start_date = (month_year or mm_yyyy).group(1)
+            
+            # Procurar "to" nas próximas linhas (até 10 linhas à frente)
+            found_to = False
+            end_date = None
+            
+            for j in range(i + 1, min(i + 11, len(lines))):
+                check_line = lines[j].strip()
+                
+                # Linha vazia, ignorar
+                if not check_line:
+                    continue
+                
+                # Encontrou "to"
+                if check_line.lower() == 'to':
+                    found_to = True
+                    # Procurar data final após o "to"
+                    for k in range(j + 1, min(j + 6, len(lines))):
+                        end_line = lines[k].strip()
+                        if not end_line:
+                            continue
+                        
+                        # Verificar se é uma data válida (Month Year, MM/YYYY, ou Present)
+                        end_match = re.match(r'^((?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}|(?:0?[1-9]|1[0-2])/\d{4}|Present|Current|Now)$', end_line, re.IGNORECASE)
+                        
+                        if end_match:
+                            end_date = end_match.group(1)
+                            # Consolidar data completa
+                            result.append(f"{start_date} to {end_date}")
+                            skip_until = k + 1
+                            break
+                        else:
+                            # Não é data válida, parar busca
+                            break
+                    
+                    if end_date:
+                        break
+                    else:
+                        # Tinha "to" mas não encontrou data válida
+                        break
+                
+                # Se a linha não é vazia nem "to", parar busca
+                if check_line.lower() != 'to':
+                    break
+            
+            # Se não consolidou, adicionar linha original
+            if not end_date:
+                result.append(line)
+        else:
+            result.append(line)
+    
+    return '\n'.join(result)
+
+
 def extract_experiences(text: str) -> List[Dict[str, str]]:
     """
-    Extrai blocos de experiência (cargo, empresa, período).
+    Extrai blocos de experiência (cargo, empresa, período) de múltiplos formatos.
+    Versão robusta que lida com diversos layouts de currículos, incluindo datas fragmentadas.
     Retorna lista de dicts: {title, company, dates, description}.
     """
-    # regex simplificado para detectar blocos de cargo
-    # formato comum: "Job Title\nMonth Year to Month Year\nCompany Name\n- bullet..."
-    pattern = re.compile(
-        r"^([A-Z][A-Za-z\s&]+)\s*\n"  # título do cargo
-        r"((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\s+to\s+(?:Present|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}))\s*\n"  # datas
-        r"(Company Name.*?)\s*\n"  # empresa
-        r"((?:.*\n)*?)"  # descrição (até próximo cargo ou fim)
-        r"(?=^[A-Z][A-Za-z\s&]+\s*\n(?:January|February|March|April|May|June|July|August|September|October|November|December)|\Z)",
-        re.MULTILINE,
-    )
-
+    # PRIMEIRO: Normalizar datas fragmentadas
+    text = normalize_fragmented_dates(text)
+    
     experiences = []
-    for m in pattern.finditer(text):
-        experiences.append({
-            "title": m.group(1).strip(),
-            "dates": m.group(2).strip(),
-            "company": m.group(3).strip(),
-            "description": m.group(4).strip(),
-        })
+    
+    # Padrões de data
+    date_full_range = r'(?:(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}|(?:0?[1-9]|1[0-2])/\d{4}|\d{4})\s*(?:[-–]|to)\s*(?:(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}|(?:0?[1-9]|1[0-2])/\d{4}|\d{4}|Present|Current|Now)'
+    date_single = r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}|(?:0?[1-9]|1[0-2])/\d{4}|\d{4}'
+    
+    lines = text.split('\n')
+    i = 0
+    
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        # Buscar data completa
+        date_match = re.search(date_full_range, line, re.IGNORECASE)
+        
+        if date_match:
+            dates = date_match.group(0)
+            title = ""
+            company = "Company Name"
+            
+            # Buscar título antes da data
+            text_before = line[:date_match.start()].strip()
+            if text_before and len(text_before) > 3 and text_before.lower() not in ['experience', 'work', 'history', 'company name']:
+                title = text_before
+            
+            # Buscar título nas linhas anteriores (pulando vazias)
+            if not title:
+                for k in range(i - 1, max(i - 5, -1), -1):
+                    prev_line = lines[k].strip()
+                    if prev_line and len(prev_line) > 3:
+                        if not re.match(r'^(Experience|Work History|Employment|Professional|Career|Company Name)$', prev_line, re.IGNORECASE):
+                            if not re.search(date_single, prev_line, re.IGNORECASE):
+                                title = prev_line
+                                break
+            
+            # Buscar empresa/título depois da data
+            text_after = line[date_match.end():].strip()
+            if text_after and len(text_after) > 2:
+                if not title:
+                    title = text_after
+                else:
+                    company = text_after
+            
+            # Buscar nas próximas linhas (pulando vazias)
+            if not title or company == "Company Name":
+                for k in range(i + 1, min(i + 6, len(lines))):
+                    next_line = lines[k].strip()
+                    if next_line and len(next_line) > 2:
+                        if not re.search(date_single, next_line, re.IGNORECASE):
+                            if not re.match(r'^(Education|Skills|Certifications|Summary|City|State)$', next_line, re.IGNORECASE):
+                                if not title:
+                                    title = next_line
+                                    break
+                                elif company == "Company Name":
+                                    company = next_line
+                                    break
+            
+            # Coletar descrição
+            description_lines = []
+            j = i + 1
+            
+            # Pular linhas já identificadas (empresa/título) e vazias
+            skip_lines = {title.lower(), company.lower(), 'company name', 'city', 'state', ','}
+            while j < len(lines):
+                check = lines[j].strip().lower()
+                if check and check not in skip_lines:
+                    break
+                j += 1
+            
+            collected = 0
+            while j < len(lines) and collected < 10:
+                desc_line = lines[j].strip()
+                
+                if re.search(date_full_range, desc_line, re.IGNORECASE):
+                    break
+                if re.match(r'^(Education|Skills|Certifications|Summary|Objective|Interests?|Awards?|Company Name)$', desc_line, re.IGNORECASE):
+                    break
+                
+                if desc_line and len(desc_line) > 5:
+                    description_lines.append(desc_line)
+                    collected += 1
+                
+                j += 1
+            
+            description = ' '.join(description_lines[:5])
+            
+            # Adicionar mesmo se não tiver título (usar "Professional Experience")
+            if not title or len(title) < 3:
+                title = "Professional Experience"
+            
+            if title.lower() != 'company name':
+                experiences.append({
+                    "title": title[:150],
+                    "dates": dates[:100],
+                    "company": company[:150],
+                    "description": description[:600],
+                })
+            
+            i = j
+        else:
+            i += 1
+    
     return experiences
 
 
@@ -274,30 +437,148 @@ def dedupe_experiences(experiences: List[Dict[str, str]], threshold: float) -> L
     return unique
 
 
-def calculate_years_experience(dates_str: str) -> float:
+def parse_single_date_range(dates_str: str) -> Tuple[Optional[datetime], Optional[datetime]]:
     """
-    Calcula anos de experiência a partir de string de datas (ex: "January 2010 to December 2015").
-    Retorna float (anos completos + fração).
+    Extrai data de início e fim de uma string de datas.
+    Retorna tupla (start_date, end_date) ou (None, None) se falhar.
     """
-    pattern = r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\s+to\s+(Present|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4}))"
-    match = re.search(pattern, dates_str, re.IGNORECASE)
-    if not match:
+    try:
+        from dateutil import parser as date_parser
+    except ImportError:
+        date_parser = None
+    
+    if not dates_str:
+        return (None, None)
+    
+    # Remove "to", "-", "–" e substitui por separador comum
+    dates_str = re.sub(r'\s+to\s+|\s*-\s*|\s*–\s*', ' | ', dates_str, flags=re.IGNORECASE)
+    
+    parts = [p.strip() for p in dates_str.split('|') if p.strip()]
+    
+    if len(parts) != 2:
+        # Tentar outro formato: "2010 - 2015" ou "Jan 2010 - Dec 2015"
+        match = re.search(r'(\w+\s+\d{4}|\d{4})\s*[-–|]\s*(\w+\s+\d{4}|\d{4}|present|current)', dates_str, re.IGNORECASE)
+        if match:
+            parts = [match.group(1), match.group(2)]
+        else:
+            return (None, None)
+    
+    start_str, end_str = parts
+    
+    try:
+        # Parse com dateutil se disponível
+        if date_parser:
+            start_date = date_parser.parse(start_str, fuzzy=True)
+            
+            if re.search(r'present|current|now', end_str, re.IGNORECASE):
+                end_date = datetime.now()
+            else:
+                end_date = date_parser.parse(end_str, fuzzy=True)
+        else:
+            # Fallback manual se dateutil não estiver instalado
+            month_map = {m: i for i, m in enumerate(["january", "february", "march", "april", "may", "june", 
+                                                       "july", "august", "september", "october", "november", "december"], 1)}
+            
+            # Extrair ano e mês do início
+            start_match = re.search(r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})', start_str, re.IGNORECASE)
+            if start_match:
+                start_month = month_map.get(start_match.group(1).lower(), 1)
+                start_year = int(start_match.group(2))
+                start_date = datetime(start_year, start_month, 1)
+            else:
+                # Apenas ano
+                year_match = re.search(r'\b(19|20)\d{2}\b', start_str)
+                if year_match:
+                    start_date = datetime(int(year_match.group(0)), 1, 1)
+                else:
+                    return (None, None)
+            
+            # Extrair ano e mês do fim
+            if re.search(r'present|current|now', end_str, re.IGNORECASE):
+                end_date = datetime.now()
+            else:
+                end_match = re.search(r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})', end_str, re.IGNORECASE)
+                if end_match:
+                    end_month = month_map.get(end_match.group(1).lower(), 12)
+                    end_year = int(end_match.group(2))
+                    end_date = datetime(end_year, end_month, 28)
+                else:
+                    year_match = re.search(r'\b(19|20)\d{2}\b', end_str)
+                    if year_match:
+                        end_date = datetime(int(year_match.group(0)), 12, 31)
+                    else:
+                        return (None, None)
+        
+        # Validar que end_date >= start_date
+        if end_date >= start_date:
+            return (start_date, end_date)
+        else:
+            return (None, None)
+    
+    except (ValueError, TypeError, AttributeError):
+        return (None, None)
+
+
+def calculate_years_experience(input_data) -> float:
+    """
+    Calcula anos totais de experiência.
+    
+    Args:
+        input_data: pode ser:
+            - str: string de datas (ex: "January 2010 to December 2015")
+            - list[dict]: lista de experiências com campo 'dates'
+    
+    Retorna:
+        float: anos totais de experiência (lida com sobreposições)
+    """
+    date_ranges = []
+    
+    # Se for string, converter para lista de 1 elemento
+    if isinstance(input_data, str):
+        start, end = parse_single_date_range(input_data)
+        if start and end:
+            date_ranges.append((start, end))
+    
+    # Se for lista de experiências
+    elif isinstance(input_data, list):
+        for exp in input_data:
+            if isinstance(exp, dict):
+                dates_str = exp.get("dates", "").strip()
+            else:
+                dates_str = str(exp).strip()
+            
+            if dates_str:
+                start, end = parse_single_date_range(dates_str)
+                if start and end:
+                    date_ranges.append((start, end))
+    
+    if not date_ranges:
         return 0.0
-
-    month_map = {m: i for i, m in enumerate(["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"], 1)}
-    start_month = month_map.get(match.group(1), 1)
-    start_year = int(match.group(2))
-    end_str = match.group(3)
-
-    if end_str.lower() == "present":
-        end_year = datetime.now().year
-        end_month = datetime.now().month
-    else:
-        end_month = month_map.get(match.group(3).split()[0], 12)
-        end_year = int(match.group(4))
-
-    months = (end_year - start_year) * 12 + (end_month - start_month)
-    return round(months / 12.0, 1)
+    
+    # Ordenar por data de início
+    date_ranges.sort(key=lambda x: x[0])
+    
+    # Mesclar períodos sobrepostos
+    merged_ranges = []
+    current_start, current_end = date_ranges[0]
+    
+    for start, end in date_ranges[1:]:
+        if start <= current_end:
+            # Sobreposição - estender o período atual
+            current_end = max(current_end, end)
+        else:
+            # Sem sobreposição - salvar período atual e começar novo
+            merged_ranges.append((current_start, current_end))
+            current_start, current_end = start, end
+    
+    # Adicionar o último período
+    merged_ranges.append((current_start, current_end))
+    
+    # Calcular total de anos
+    total_days = sum((end - start).days for start, end in merged_ranges)
+    total_years = round(total_days / 365.25, 1)
+    
+    return total_years
 
 
 # ======================== PRÉ-PROCESSAMENTO PRINCIPAL ========================
@@ -330,8 +611,8 @@ def preprocess_text(raw: str, min_similarity: float) -> Dict[str, object]:
     experiences = extract_experiences(clean_text)
     experiences_deduped = dedupe_experiences(experiences, threshold=0.90)
 
-    # 5. Cálculo de anos de experiência
-    total_years = sum(calculate_years_experience(exp["dates"]) for exp in experiences_deduped)
+    # 5. Cálculo de anos de experiência (passa lista completa para lidar com sobreposições)
+    total_years = calculate_years_experience(experiences_deduped)
 
     stats = {
         "paragraphs_input": len(paragraphs),
@@ -431,11 +712,6 @@ def main() -> None:
                 "metadata": {
                     "pages": (doc.get("metadata") or {}).get("pages"),
                     "extracted_at": (doc.get("metadata") or {}).get("extracted_at"),
-                },
-                "preproc": {
-                    "created_at": now,
-                    "stats": pp["stats"],
-                    "min_similarity": args.min_similarity,
                 },
             }
 
