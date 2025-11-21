@@ -2,10 +2,33 @@ import re
 from .config import Agent
 from .engine import evaluate
 from app.nlp.spacy_nlp import analyze
+from app.ml.predict import ResumeClassifier
+from app.ml.semantic_similarity import compute_semantic_similarity
 from .subscores import (
     score_skills, score_experience, score_projects, score_certs,
     score_impact, score_semantic, score_doc_quality, score_contact, score_context
 )
+
+# Classificador híbrido global (carregado uma vez)
+_CLASSIFIER = None
+
+def get_classifier() -> ResumeClassifier:
+    """Retorna instância singleton do classificador híbrido."""
+    global _CLASSIFIER
+    if _CLASSIFIER is None:
+        try:
+            _CLASSIFIER = ResumeClassifier(
+                model_path="models/resume_classifier/run-2025-11-18-balanced",
+                use_hybrid=True,
+                years_threshold=2.0,
+                confidence_threshold=0.85
+            )
+            print("✅ Classificador híbrido carregado com sucesso")
+        except Exception as e:
+            print(f"⚠️  Erro ao carregar classificador: {e}")
+            print("   Sistema continuará usando detecção baseada em regras")
+            _CLASSIFIER = None
+    return _CLASSIFIER
 
 CERT_MAP = {  # pontos simples por certificação (MVP)
     r"\bAWS\s*(CCP|Cloud Practitioner)\b": 0.3,
@@ -49,11 +72,73 @@ def extract_cert_points(text: str) -> float:
     return min(pts, 1.0)
 
 def extract_metrics_hits(text: str) -> int:
+    """Detecção melhorada de métricas de impacto."""
     if not text: return 0
     hits = 0
+    
+    # Percentuais
     hits += len(re.findall(r"\b\d+(\.\d+)?\s*%\b", text))
-    hits += len(re.findall(r"\b\d{2,}\s*(ms|req/s|usuarios|usuários|r\$|\$|k)\b", text, flags=re.I))
-    return hits
+    
+    # Valores monetários com contexto
+    hits += len(re.findall(r"(R\$|US\$|USD|\$)\s*\d+[\d,\.]*[kKmMbB]?", text, flags=re.I))
+    
+    # Números de impacto com contexto
+    impact_patterns = [
+        r"(reduzi[ur]|aumentou|melhorou|otimizou|economizou).*?\b\d+(\.\d+)?\s*%",
+        r"\b\d+[kKmM]?\s*(usuários|users|clientes|customers|pessoas)",
+        r"\b\d+\s*(requests?|req/s|ms|segundos?|minutos?)",
+        r"(tempo|latência|performance|velocidade).*?\b\d+\s*%",
+        r"(economia|redução|aumento|crescimento).*?(R\$|US\$|\$)\s*\d+",
+        r"\b\d+x\s*(mais rápido|faster|maior|melhor)",
+        r"(crescimento|growth).*?\b\d+(\.\d+)?\s*%",
+    ]
+    
+    for pattern in impact_patterns:
+        matches = re.findall(pattern, text, flags=re.I)
+        hits += len(matches)
+    
+    return min(hits, 12)  # Cap para evitar inflação
+
+def score_skills_with_depth(cv_skills: list, text: str, skill_weights: dict = None) -> float:
+    """
+    Score de skills ponderado por relevância e profundidade.
+    
+    Args:
+        cv_skills: Lista de skills identificadas
+        text: Texto do currículo
+        skill_weights: Dict com peso de cada skill (opcional)
+    
+    Returns:
+        Score normalizado (0.0 a 1.0)
+    """
+    if not cv_skills:
+        return 0.0
+    
+    total_score = 0.0
+    skill_weights = skill_weights or {}
+    
+    for skill in cv_skills:
+        # Peso base da skill (padrão: 1.0)
+        weight = skill_weights.get(skill.lower(), 1.0)
+        
+        # Bonus por mencionar anos de experiência com a skill
+        years_match = re.search(
+            rf"{re.escape(skill)}.*?(\d+)\s*(anos?|years?)",
+            text,
+            flags=re.I
+        )
+        years_bonus = 0.3 if years_match else 0.0
+        
+        # Bonus por contexto avançado
+        skill_context = text[max(0, text.lower().find(skill.lower())-50):text.lower().find(skill.lower())+50]
+        advanced_keywords = ["avançado", "expert", "especialista", "sênior", "senior", "proficiente"]
+        context_bonus = 0.2 if any(kw in skill_context.lower() for kw in advanced_keywords) else 0.0
+        
+        skill_score = weight * (1.0 + years_bonus + context_bonus)
+        total_score += skill_score
+    
+    # Normalizar por número ideal de skills (12)
+    return min(total_score / 12.0, 1.0)
 
 def tokens_count(text: str) -> int:
     return len(text.split()) if text else 0
@@ -72,18 +157,76 @@ def dup_rate_trigram(text: str) -> float:
     uniq = len(set(tri))
     return max(0.0, (total - uniq)/total)
 
-def build_features_from_doc(doc: dict, has_experience: bool) -> dict:
-    text = (doc.get("description_clean") or "").strip()
+def build_features_from_doc(doc: dict, has_experience: bool = None) -> dict:
+    """
+    Extrai features do documento. Se has_experience=None, usa classificador ML.
+    
+    Args:
+        doc: Documento do currículo
+        has_experience: True/False para forçar classificação, None para usar ML
+    
+    Returns:
+        Dict com features extraídas + classificação de experiência
+    """
+    text = (doc.get("description_clean") or doc.get("resume_text_clean") or "").strip()
     sp = analyze(text)  # ← usa spaCy aqui
 
     skills = sorted(set((doc.get("skills") or []) + sp["skills"]))
     tokens = sp["tokens"]
-    years  = extract_years_total(text)  # pode manter regex por enquanto
+    years  = doc.get("years_experience") or extract_years_total(text)
+    
+    # Classificação de experiência
+    if has_experience is None:
+        # Usar classificador híbrido ML
+        classifier = get_classifier()
+        if classifier:
+            try:
+                result = classifier.predict(
+                    text=text,
+                    years_experience=years,
+                    return_details=True
+                )
+                has_experience = result["prediction"] == 1
+                classification_info = {
+                    "ml_used": True,
+                    "method": result["method"],
+                    "confidence": result["confidence"],
+                    "reason": result.get("reason", "")
+                }
+            except Exception as e:
+                print(f"⚠️  Erro na classificação ML: {e}")
+                # Fallback: regra simples
+                has_experience = years >= 2.0
+                classification_info = {
+                    "ml_used": False,
+                    "method": "rule_fallback",
+                    "confidence": 1.0,
+                    "reason": f"ML error, using years >= 2.0"
+                }
+        else:
+            # Fallback: regra simples se ML não disponível
+            has_experience = years >= 2.0
+            classification_info = {
+                "ml_used": False,
+                "method": "rule_only",
+                "confidence": 1.0,
+                "reason": "ML classifier not available"
+            }
+    else:
+        # Classificação manual fornecida
+        classification_info = {
+            "ml_used": False,
+            "method": "manual",
+            "confidence": 1.0,
+            "reason": "manually specified"
+        }
 
     return {
         "text": text,
         "skills": skills,
         "years_total": years,
+        "has_experience": has_experience,
+        "classification": classification_info,
         "seniority_align": extract_seniority_align(text, Agent.EXPERIENCED if has_experience else Agent.NOEXP),
         "project_hits": extract_projects_hits(text),
         "cert_points": max(extract_cert_points(text), 0.2 if sp["certs"] else 0.0),  # pequeno boost
@@ -93,7 +236,9 @@ def build_features_from_doc(doc: dict, has_experience: bool) -> dict:
         "dup_rate": dup_rate_trigram(text),
         "has_email": bool(doc.get("contact_email")),
         "has_phone": bool(doc.get("contact_phone")),
-        "cosine": 0.0, "remote_align": 0.5, "comp_score": None,
+        "cosine": compute_semantic_similarity(text, doc.get("job_description")),  # MODELO FINE-TUNED
+        "remote_align": 0.5, 
+        "comp_score": None,
         "career_progression": any(w in text.lower() for w in ["jr","júnior","junior"]) and any(w in text.lower() for w in ["pleno","sênior","senior"]),
     }
 
@@ -110,9 +255,32 @@ def build_subscores(features: dict, agent: Agent) -> dict:
         "context":     score_context(features.get("remote_align",0), features.get("comp_score"))
     }
 
-def evaluate_resume_from_doc(doc: dict, has_experience: bool) -> dict:
-    agent = Agent.EXPERIENCED if has_experience else Agent.NOEXP
+def evaluate_resume_from_doc(doc: dict, has_experience: bool = None) -> dict:
+    """
+    Avalia currículo completo.
+    
+    Args:
+        doc: Documento do currículo
+        has_experience: True/False para forçar classificação, None para usar ML automático
+    
+    Returns:
+        Dict com features, subscores, score final e explicação
+    """
     feats = build_features_from_doc(doc, has_experience)
+    
+    # Usar classificação automática se disponível
+    detected_experience = feats.get("has_experience", False)
+    agent = Agent.EXPERIENCED if detected_experience else Agent.NOEXP
+    
     subs  = build_subscores(feats, agent)
     result = evaluate(agent, subs)
-    return { "features": feats, **result }
+    
+    return { 
+        "features": feats, 
+        **result,
+        "experience_classification": {
+            "is_experienced": detected_experience,
+            "agent_used": agent.value,
+            **feats.get("classification", {})
+        }
+    }

@@ -1,0 +1,210 @@
+{
+  "threshold_test": {
+    "correct": 13,
+    "wrong": 7,
+    "details": [
+      {
+        "filename": "28206098.pdf",
+        "years": 1.5,
+        "expected": 0,
+        "predicted": 1,
+        "confidence": 0.9590394496917725
+      },
+      {
+        "filename": "36694627.pdf",
+        "years": 2.4,
+        "expected": 1,
+        "predicted": 1,
+        "confidence": 0.9587970972061157
+      },
+      {
+        "filename": "37560528.pdf",
+        "years": 2.0,
+        "expected": 1,
+        "predicted": 1,
+        "confidence": 0.956684410572052
+      },
+      {
+        "filename": "11197262.pdf",
+        "years": 1.7,
+        "expected": 0,
+        "predicted": 0,
+        "confidence": 0.9177820682525635
+      },
+      {
+        "filename": "19851252.pdf",
+        "years": 1.6,
+        "expected": 0,
+        "predicted": 0,
+        "confidence": 0.9540480971336365
+      },
+      {
+        "filename": "55500538.pdf",
+        "years": 2.4,
+        "expected": 1,
+        "predicted": 0,
+        "confidence": 0.7382374405860901
+      },
+      {
+        "filename": "25142074.pdf",
+        "years": 2.3,
+        "expected": 1,
+        "predicted": 0,
+        "confidence": 0.939054548740387
+      },
+      {
+        "filename": "30430249.pdf",
+        "years": 2.0,
+        "expected": 1,
+        "predicted": 0,
+        "confidence": 0.9131914973258972
+      },
+      {
+        "filename": "20698469.pdf",
+        "years": 1.9,
+        "expected": 0,
+        "predicted": 0,
+        "confidence": 0.9355321526527405
+      },
+      {
+        "filename": "32318506.pdf",
+        "years": 2.3,
+        "expected": 1,
+        "predicted": 0,
+        "confidence": 0.8158756494522095
+      },
+      {
+        "filename": "84295343.pdf",
+        "years": 2.3,
+        "expected": 1,
+        "predicted": 1,
+        "confidence": 0.9257099628448486
+      },
+      {
+        "filename": "99680385.pdf",
+        "years": 2.4,
+        "expected": 1,
+        "predicted": 0,
+        "confidence": 0.9609365463256836
+      },
+      {
+        "filename": "29595906.pdf",
+        "years": 1.7,
+        "expected": 0,
+        "predicted": 0,
+        "confidence": 0.9620606303215027
+      },
+      {
+        "filename": "16300459.pdf",
+        "years": 2.1,
+        "expected": 1,
+        "predicted": 1,
+        "confidence": 0.759663999080658
+      },
+      {
+        "filename": "25080805.pdf",
+        "years": 1.8,
+        "expected": 0,
+        "predicted": 0,
+        "confidence": 0.8965540528297424
+      },
+      {
+        "filename": "34953092.pdf",
+        "years": 1.7,
+        "expected": 0,
+        "predicted": 0,
+        "confidence": 0.515275776386261
+      },
+      {
+        "filename": "74552449.pdf",
+        "years": 1.8,
+        "expected": 0,
+        "predicted": 0,
+        "confidence": 0.5550299286842346
+      },
+      {
+        "filename": "89512321.pdf",
+        "years": 1.5,
+        "expected": 0,
+        "predicted": 0,
+        "confidence": 0.9520018100738525
+      },
+      {
+        "filename": "22025574.pdf",
+        "years": 1.5,
+        "expected": 0,
+        "predicted": 1,
+        "confidence": 0.8948646783828735
+      },
+      {
+        "filename": "59696315.pdf",
+        "years": 1.8,
+        "expected": 0,
+        "predicted": 0,
+        "confidence": 0.7859455347061157
+      }
+    ]
+  },
+  "zero_experience_test": {
+    "correct": 19,
+    "wrong": 11,
+    "false_positives": [
+      {
+        "filename": "14470533.pdf",
+        "confidence": 0.586992621421814
+      },
+      {
+        "filename": "15906625.pdf",
+        "confidence": 0.9751114845275879
+      },
+      {
+        "filename": "13701259.pdf",
+        "confidence": 0.9743016958236694
+      },
+      {
+        "filename": "14491649.pdf",
+        "confidence": 0.8649618029594421
+      },
+      {
+        "filename": "20253563.pdf",
+        "confidence": 0.9636877775192261
+      },
+      {
+        "filename": "25547145.pdf",
+        "confidence": 0.8993995785713196
+      },
+      {
+        "filename": "26065877.pdf",
+        "confidence": 0.9748265743255615
+      },
+      {
+        "filename": "29999135.pdf",
+        "confidence": 0.9743667840957642
+      },
+      {
+        "filename": "15727656.pdf",
+        "confidence": 0.7009511590003967
+      },
+      {
+        "filename": "78538268.pdf",
+        "confidence": 0.9543318152427673
+      },
+      {
+        "filename": "34141299.pdf",
+        "confidence": 0.5315439105033875
+      }
+    ]
+  },
+  "high_experience_test": {
+    "correct": 29,
+    "wrong": 1,
+    "low_confidence": []
+  },
+  "confidence_stats": {
+    "mean": 0.9453607422113418,
+    "std": 0.07608900475999794,
+    "min": 0.5367660522460938,
+    "max": 0.9763451218605042,
+    "median": 0.9722294509410858
+  }
+}

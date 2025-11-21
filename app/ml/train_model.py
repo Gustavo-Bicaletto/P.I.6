@@ -82,7 +82,7 @@ def train_resume_classifier(
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
-        num_labels=2  # Binary: experienced vs not experienced
+        num_labels=2  
     )
     
     # Carregar datasets

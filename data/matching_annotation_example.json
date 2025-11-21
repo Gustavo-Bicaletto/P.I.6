@@ -1,0 +1,59 @@
+[
+  {
+    "resume_id": "ACCOUNTANT/10554236.pdf",
+    "resume_filename": "10554236.pdf",
+    "resume_text": "ACCOUNTANT\nSummary\nFinancial Accountant specializing in financial planning, reporting and analysis within the Department of Defense.\nHighlights\nAccount reconciliations\nResults-oriented\nFinancial reporting\nCritical thinking\nAccounting operations professional\nAnalysis of financial systems\nERP (Enterprise Resource Planning) software.\nExcellent facilitator\nAccomplishments\nServed on a tiger team which identified and resolved General Ledger postings in DEAMS totaling $360B in accounting adjustments. This allowed\nfor the first successful fiscal year-end close for 2012.\nIn collaboration with DFAS Europe, developed an automated tool that identified duplicate obligations. This tool allowed HQ USAFE to\ndeobligate over $5M in duplicate obligations.\nExperience\nCompany Name\n \nJuly 2011\n \nto \nNovember 2012\n \nAccountant\n \nCity\n \n, \nState\nEnterprise Resource Planning Office (ERO)\nIn this position as an Accountant assigned to the Defense Enterprise Accounting and Management System (DEAMS) ERO I was\nresp",
+    "resume_skills": [
+      "account oper profession",
+      "account reconcili",
+      "analysi financi system",
+      "critic think",
+      "erp enterpris resourc plan softwar",
+      "excel facilit",
+      "financi report",
+      "result orient"
+    ],
+    "resume_years": 19.3,
+    "job_id": "job_001",
+    "job_title": "Desenvolvedor Python Sênior",
+    "job_description": "Buscamos desenvolvedor Python com 5+ anos de experiência. Requisitos: Python, Django/Flask, PostgreSQL, Docker, AWS. Experiência com APIs REST e microserviços.",
+    "job_required_skills": [
+      "Python",
+      "Django",
+      "PostgreSQL",
+      "Docker",
+      "AWS"
+    ],
+    "match_score": 0.85,
+    "match_label": "good",
+    "notes": "Candidato tem Python e experiência relevante, mas faltam algumas skills AWS"
+  },
+  {
+    "resume_id": "ACCOUNTANT/10554236.pdf",
+    "resume_filename": "10554236.pdf",
+    "resume_text": "ACCOUNTANT\nSummary\nFinancial Accountant specializing in financial planning, reporting and analysis within the Department of Defense.\nHighlights\nAccount reconciliations\nResults-oriented\nFinancial reporting\nCritical thinking\nAccounting operations professional\nAnalysis of financial systems\nERP (Enterprise Resource Planning) software.\nExcellent facilitator\nAccomplishments\nServed on a tiger team which identified and resolved General Ledger postings in DEAMS totaling $360B in accounting adjustments. This allowed\nfor the first successful fiscal year-end close for 2012.\nIn collaboration with DFAS Europe, developed an automated tool that identified duplicate obligations. This tool allowed HQ USAFE to\ndeobligate over $5M in duplicate obligations.\nExperience\nCompany Name\n \nJuly 2011\n \nto \nNovember 2012\n \nAccountant\n \nCity\n \n, \nState\nEnterprise Resource Planning Office (ERO)\nIn this position as an Accountant assigned to the Defense Enterprise Accounting and Management System (DEAMS) ERO I was\nresp",
+    "resume_skills": [
+      "account oper profession",
+      "account reconcili",
+      "analysi financi system",
+      "critic think",
+      "erp enterpris resourc plan softwar",
+      "excel facilit",
+      "financi report",
+      "result orient"
+    ],
+    "resume_years": 19.3,
+    "job_id": "job_002",
+    "job_title": "Desenvolvedor Full Stack Pleno",
+    "job_description": "Desenvolvedor Full Stack para trabalhar com React e Node.js. Requisitos: JavaScript, React, Node.js, MongoDB, Git. Desejável: TypeScript, Next.js.",
+    "job_required_skills": [
+      "JavaScript",
+      "React",
+      "Node.js",
+      "MongoDB"
+    ],
+    "match_score": 0.3,
+    "match_label": "poor",
+    "notes": "Skills não compatíveis com a vaga"
+  }
+]

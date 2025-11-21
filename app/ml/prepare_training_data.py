@@ -36,10 +36,11 @@ def prepare_training_data(
     
     MONGO_URI = os.getenv("MONGO_URI")
     MONGO_DB = os.getenv("MONGO_DB", "resumAI")
+    MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "dados_processados")
     
     client = MongoClient(MONGO_URI)
     db = client[MONGO_DB]
-    collection = db["dados_processados"]
+    collection = db[MONGO_COLLECTION]
     
     # Criar diretório de saída
     os.makedirs(output_dir, exist_ok=True)
@@ -112,6 +113,22 @@ def prepare_training_data(
     all_data = data_experienced + data_not_experienced
     
     print(f"\n📦 Total de amostras: {len(all_data)}")
+
+    if len(all_data) == 0:
+        print("\n⚠️  Nenhuma amostra encontrada a partir da coleção/consulta informada.")
+        print("   Verifique as variáveis .env (MONGO_URI, MONGO_DB, MONGO_COLLECTION)")
+        print("   e os campos esperados: 'resume_text_clean', 'years_experience', 'experiences'.")
+        client.close()
+        return {
+            "created_at": datetime.utcnow().isoformat(),
+            "min_years_experienced": min_years_experienced,
+            "balanced": balance,
+            "total_samples": 0,
+            "train_size": 0,
+            "val_size": 0,
+            "test_size": 0,
+            "class_distribution": {"experienced": 0, "not_experienced": 0}
+        }
     
     # Separar em treino, validação e teste
     train_data, temp_data = train_test_split(

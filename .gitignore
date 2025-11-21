@@ -9,6 +9,25 @@ __pycache__/
 
 # Training data
 data/training/
+data/matching_pairs_to_annotate.json
+data/matching_pairs_annotated.json
+data/scoring_annotations_auto.json
+
+# Checkpoints de treinamento
+checkpoints/
+
+# Logs
+*.log
+app/data/outputs/
+
+# Dados temporários
+test_payload.json
+app/resumes_dataset.json
+
+# Modelos antigos/experimentais
+models/resume_classifier/run-2025-11-18-smoke/
+models/resume_classifier/run-2025-11-18-gpu-full/
+models/resume_classifier/checkpoint-*/
 
 # Archives
 *.tar.gz
