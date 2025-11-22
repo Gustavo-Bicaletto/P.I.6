@@ -37,19 +37,43 @@ CERT_MAP = {  # pontos simples por certificação (MVP)
 }
 
 def extract_years_total(text: str) -> float:
+    """Extrai anos de experiência com suporte a padrões PT-BR e EN."""
     if not text: return 0.0
     yrs = 0.0
-    # padrão “X anos”
-    for m in re.finditer(r"\b(\d+(?:\.\d+)?)\s*(anos|years)\b", text, flags=re.I):
+    
+    # Padrão explícito: "X anos" ou "X years"
+    for m in re.finditer(r"\b(\d+(?:\.\d+)?)\s*(anos?|years?)\b", text, flags=re.I):
         yrs = max(yrs, float(m.group(1)))
-    # intervalos “2019-2023”
-    for m in re.finditer(r"\b(19|20)\d{2}\s*[-–—]\s*((19|20)\d{2}|presente|atual|hoje)\b", text, flags=re.I):
-        a = int(text[m.start():m.start()+4])
-        b = None
-        if m.group(2).isdigit(): b = int(m.group(2))
-        else: b = 2025
-        yrs = max(yrs, max(0, b - a))
-    return min(yrs, 15.0)
+    
+    # Intervalos: "2019-2023", "2019 - 2023", "2019 – atual"
+    for m in re.finditer(r"\b(19|20)\d{2}\s*[-–—]\s*((19|20)\d{2}|presente|atual|hoje|current|present)\b", text, flags=re.I):
+        start_year = int(text[m.start():m.start()+4])
+        end_text = m.group(2).lower()
+        
+        if end_text in ["presente", "atual", "hoje", "current", "present"]:
+            end_year = 2025
+        else:
+            end_year = int(end_text[:4])
+        
+        years_diff = max(0, end_year - start_year)
+        yrs = max(yrs, years_diff)
+    
+    # Padrões brasileiros: "desde 2019", "a partir de 2020"
+    for m in re.finditer(r"\b(desde|a partir de|from)\s+(19|20)\d{2}\b", text, flags=re.I):
+        year_match = re.search(r"(19|20)\d{2}", m.group())
+        if year_match:
+            start_year = int(year_match.group())
+            years_diff = max(0, 2025 - start_year)
+            yrs = max(yrs, years_diff)
+    
+    # Padrão de período: "jan/2020 a dez/2023", "03/2019 - 05/2022"
+    for m in re.finditer(r"\b\d{1,2}/(\d{4})\s*[-–—a]\s*\d{1,2}/(\d{4})\b", text):
+        start_year = int(m.group(1))
+        end_year = int(m.group(2))
+        years_diff = max(0, end_year - start_year)
+        yrs = max(yrs, years_diff)
+    
+    return min(yrs, 20.0)  # Cap em 20 anos para evitar outliers
 
 def extract_seniority_align(text: str, agent: Agent) -> float:
     t = text.lower() if text else ""
@@ -157,6 +181,20 @@ def dup_rate_trigram(text: str) -> float:
     uniq = len(set(tri))
     return max(0.0, (total - uniq)/total)
 
+def extract_email(text: str) -> bool:
+    """Detecta se há email no texto."""
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    return bool(re.search(email_pattern, text))
+
+def extract_phone(text: str) -> bool:
+    """Detecta se há telefone no texto (formatos brasileiros)."""
+    phone_patterns = [
+        r'\(\d{2}\)\s*\d{4,5}-?\d{4}',  # (11) 98765-4321 ou (11) 8765-4321
+        r'\d{2}\s*\d{4,5}-?\d{4}',       # 11 98765-4321
+        r'\+55\s*\d{2}\s*\d{4,5}-?\d{4}', # +55 11 98765-4321
+    ]
+    return any(re.search(pattern, text) for pattern in phone_patterns)
+
 def build_features_from_doc(doc: dict, has_experience: bool = None) -> dict:
     """
     Extrai features do documento. Se has_experience=None, usa classificador ML.
@@ -174,6 +212,10 @@ def build_features_from_doc(doc: dict, has_experience: bool = None) -> dict:
     skills = sorted(set((doc.get("skills") or []) + sp["skills"]))
     tokens = sp["tokens"]
     years  = doc.get("years_experience") or extract_years_total(text)
+    
+    # Extrair contatos
+    has_email = extract_email(text)
+    has_phone = extract_phone(text)
     
     # Classificação de experiência
     if has_experience is None:
@@ -228,14 +270,14 @@ def build_features_from_doc(doc: dict, has_experience: bool = None) -> dict:
         "has_experience": has_experience,
         "classification": classification_info,
         "seniority_align": extract_seniority_align(text, Agent.EXPERIENCED if has_experience else Agent.NOEXP),
-        "project_hits": extract_projects_hits(text),
+        "project_hits": sp.get("project_hits", 0),  # ✅ Usar detecção do spaCy
         "cert_points": max(extract_cert_points(text), 0.2 if sp["certs"] else 0.0),  # pequeno boost
         "metrics_hits": extract_metrics_hits(text),
         "tokens": tokens,
-        "sections_present": sections_present_count(text),
+        "sections_present": sp.get("sections_count", 0),  # ✅ Usar detecção melhorada do spaCy
         "dup_rate": dup_rate_trigram(text),
-        "has_email": bool(doc.get("contact_email")),
-        "has_phone": bool(doc.get("contact_phone")),
+        "has_email": sp.get("has_email", False),  # ✅ Usar detecção do spaCy
+        "has_phone": sp.get("has_phone", False),  # ✅ Usar detecção do spaCy
         "cosine": compute_semantic_similarity(text, doc.get("job_description")),  # MODELO FINE-TUNED
         "remote_align": 0.5, 
         "comp_score": None,

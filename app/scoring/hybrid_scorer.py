@@ -76,17 +76,16 @@ class HybridScorer:
         hybrid_score = (ml_score * adjusted_ml_weight + 
                        rb_score * adjusted_rb_weight)
         
-        # 5. Label
-        if hybrid_score >= 80:
-            label = "Excelente"
-        elif hybrid_score >= 65:
-            label = "Bom"
-        elif hybrid_score >= 50:
-            label = "Regular"
-        elif hybrid_score >= 35:
-            label = "Fraco"
+        # 5. Label: BOM ou RUIM (critério baseado no perfil)
+        # Estagiários (sem experiência): >= 40 = BOM
+        # Experientes: >= 50 = BOM
+        has_experience = doc.get('has_experience', False)
+        if has_experience:
+            # Profissional: critério mais rigoroso
+            label = "Bom" if hybrid_score >= 50 else "Ruim"
         else:
-            label = "Muito Fraco"
+            # Estagiário/Júnior: critério mais leve
+            label = "Bom" if hybrid_score >= 40 else "Ruim"
         
         # 6. Explicação
         explanation = self._generate_explanation(
