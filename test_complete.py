@@ -188,36 +188,62 @@ def test_complete_pipeline(resume_path: str):
     perfil_nome = "Experiente" if is_experienced else "Estagiário/Júnior"
     print(f"\n📌 Critério aplicado: {perfil_nome} (>= {cutoff:.0f} = BOM)")
     
-    print(f"\n💡 Recomendações para Melhoria:")
-    recommendations = []
+    print(f"\n💡 Análise Detalhada:")
     
-    if subscores.get('skills', 0) < 0.6:
-        recommendations.append("   • Adicionar mais habilidades técnicas relevantes")
-    if subscores.get('experience', 0) < 0.5:
-        recommendations.append("   • Detalhar melhor a experiência profissional com períodos e responsabilidades")
-    if subscores.get('projects', 0) < 0.5:
-        recommendations.append("   • Incluir projetos relevantes (acadêmicos, pessoais ou profissionais)")
-    if subscores.get('impact', 0) < 0.6:
-        recommendations.append("   • Quantificar resultados e impacto (números, métricas, percentuais)")
-    if subscores.get('doc_quality', 0) < 0.7:
-        recommendations.append("   • Melhorar estrutura: adicionar seções importantes (Formação, Projetos, etc.)")
-    if not features.get('has_email') or not features.get('has_phone'):
-        recommendations.append("   • Garantir que email e telefone estejam visíveis")
-    if subscores.get('certs', 0) < 0.5:
-        recommendations.append("   • Adicionar certificações e cursos relevantes")
+    # Identificar pontos fracos (subscores abaixo de 80%)
+    weak_points = []
+    improvement_tips = {
+        'skills': "Adicione mais habilidades técnicas relevantes para sua área",
+        'experience': "Detalhe melhor sua experiência: responsabilidades, conquistas, período exato",
+        'projects': "Mencione projetos desenvolvidos (acadêmicos, pessoais ou profissionais)",
+        'impact': "Quantifique seus resultados: números, percentuais, métricas de impacto",
+        'doc_quality': "Melhore a estrutura: adicione mais seções (Formação, Projetos, Idiomas, etc.)",
+        'certs': "Adicione certificações, cursos ou qualificações relevantes",
+    }
     
-    if recommendations:
-        for rec in recommendations[:5]:  # Mostrar no máximo 5 recomendações
-            print(rec)
+    for key, tip in improvement_tips.items():
+        score = subscores.get(key, 0)
+        if score < 0.8:  # Abaixo de 80% = oportunidade de melhoria
+            percentage = int(score * 100)
+            weak_points.append((key, percentage, tip))
+    
+    # Ordenar por menor score (maior oportunidade de melhoria)
+    weak_points.sort(key=lambda x: x[1])
+    
+    if weak_points:
+        print(f"   📊 Oportunidades de Melhoria (para aumentar o score):")
+        for i, (key, percentage, tip) in enumerate(weak_points[:5], 1):
+            print(f"   {i}. [{percentage}%] {tip}")
     else:
-        print("   ✅ Currículo está bem estruturado!")
+        print("   ✅ Todos os critérios estão em níveis excelentes (>80%)!")
+    
+    # Destacar pontos fortes
+    strong_points = [(k, int(v*100)) for k, v in subscores.items() if v >= 0.9]
+    if strong_points:
+        print(f"\n   ⭐ Pontos Fortes:")
+        for key, percentage in strong_points[:3]:
+            names = {
+                'skills': 'Habilidades',
+                'experience': 'Experiência',
+                'doc_quality': 'Qualidade do Documento',
+                'contact': 'Informações de Contato',
+                'certs': 'Certificações',
+                'projects': 'Projetos',
+                'impact': 'Impacto/Métricas'
+            }
+            print(f"      • {names.get(key, key)}: {percentage}%")
     
     print(f"\n🎯 Resultado Final:")
     if label == "Bom":
-        print(f"   ✅ BOM - Currículo tem boa qualidade")
+        if final_score >= 80:
+            print(f"   ✅ EXCELENTE ({final_score:.1f}/100) - Currículo de alta qualidade!")
+        elif final_score >= 65:
+            print(f"   ✅ BOM ({final_score:.1f}/100) - Currículo sólido, com espaço para otimizações")
+        else:
+            print(f"   ✅ BOM ({final_score:.1f}/100) - Aprovado, mas pode ser melhorado")
         print(f"      Está aprovado para seguir no processo de avaliação!")
     else:
-        print(f"   ❌ RUIM - Currículo precisa de melhorias")
+        print(f"   ❌ RUIM ({final_score:.1f}/100) - Currículo precisa de melhorias")
         print(f"      Recomenda-se revisão antes de submeter para processos seletivos.")
     
     print(f"\n{'='*70}\n")

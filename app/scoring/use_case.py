@@ -30,11 +30,91 @@ def get_classifier() -> ResumeClassifier:
             _CLASSIFIER = None
     return _CLASSIFIER
 
-CERT_MAP = {  # pontos simples por certificação (MVP)
+CERT_MAP = {
+    # Certificações de Cloud/TI (EN)
     r"\bAWS\s*(CCP|Cloud Practitioner)\b": 0.3,
     r"\bAWS\s*(SAA|Solutions Architect Associate)\b": 0.5,
-    r"\bAZ-900\b": 0.3, r"\bDP-203\b": 0.5, r"\bSecurity\+\b": 0.4
+    r"\bAZ-900\b": 0.3,
+    r"\bDP-203\b": 0.5,
+    r"\bSecurity\+\b": 0.4,
+    
+    # Marketing Digital (PT-BR)
+    r"\bGoogle\s*Ads\s*(Certification|Certificação)\b": 0.4,
+    r"\bGoogle\s*Analytics\s*(Certification|Certificação|4|GA4)\b": 0.4,
+    r"\bGoogle\s*Skillshop\b": 0.3,
+    r"\bFacebook\s*(Blueprint|Ads|Marketing)\s*(Certification|Certificação)\b": 0.4,
+    r"\bMeta\s*(Blueprint|Ads)\s*(Certification|Certificação)\b": 0.4,
+    r"\b(Inbound|Content)\s*Marketing\s*(Certification|Certificação)\b": 0.3,
+    r"\bHubSpot\s*(Certification|Certificação|Academy)\b": 0.4,
+    r"\bRD\s*Station\s*(Certification|Certificação)\b": 0.3,
+    
+    # Design (PT-BR + EN)
+    r"\bAdobe\s*(Certified|Certificado)\b": 0.4,
+    r"\b(UX|UI)\s*Design\s*(Certification|Certificação)\b": 0.4,
+    r"\bFigma\s*(Certification|Certificação)\b": 0.3,
+    
+    # Gestão de Projetos (PT-BR + EN)
+    r"\bPMP\b": 0.5,
+    r"\bPMBOK\b": 0.4,
+    r"\bScrum\s*Master\s*(Certification|Certificação|PSM|CSM)\b": 0.4,
+    r"\bProduct\s*Owner\s*(Certification|Certificação|PSPO|CSPO)\b": 0.4,
+    r"\bPrince2\b": 0.4,
+    r"\bCobit\b": 0.4,
+    r"\bItil\b": 0.4,
+    
+    # Finanças/Contabilidade (PT-BR)
+    r"\bCRC\b": 0.4,  # Conselho Regional de Contabilidade
+    r"\bCPA\b": 0.5,
+    r"\bCFA\b": 0.5,
+    r"\bCertificação\s*(CPA|Anbima)\b": 0.4,
+    
+    # Idiomas (PT-BR + EN)
+    r"\b(TOEFL|IELTS|Cambridge|TOEIC)\b": 0.3,
+    r"\b(Fluente|Fluent|Avançado|Advanced)\s*(em|in)\s*(inglês|espanhol|english|spanish)\b": 0.2,
+    
+    # Genéricos (PT-BR + EN) - menor pontuação
+    r"\b(Certificação|Certificado|Certificate|Certification)\s+(em|de|in)\b": 0.15,
+    r"\b(Curso|Course)\s+(de|em|in)\s+\w+": 0.1,
 }
+
+def extract_cert_points(text: str) -> float:
+    """Extrai pontos de certificações (PT-BR + EN)."""
+    if not text: return 0.0
+    
+    pts = 0.0
+    text_lower = text.lower()
+    
+    # 1. Certificações específicas do CERT_MAP
+    for pat, val in CERT_MAP.items():
+        matches = re.findall(pat, text, flags=re.I)
+        pts += len(matches) * val
+    
+    # 2. Detecção genérica de seções de certificação
+    has_cert_section = any(keyword in text_lower for keyword in [
+        "certificações", "certificados", "cursos", "certifications", 
+        "certificates", "courses", "formação complementar"
+    ])
+    
+    if has_cert_section:
+        # Contar linhas com padrões de certificação
+        cert_patterns = [
+            r"[-–—•]\s*.+?(certificação|certificado|certificate|curso|course)",
+            r"^\s*.+?\s*[-–—]\s*.+?(google|meta|facebook|aws|azure|microsoft|adobe|ibm)",
+            r"\d{4}\s*[-–—]\s*.+?(certificação|certificado|certificate)",
+        ]
+        
+        for pattern in cert_patterns:
+            matches = re.findall(pattern, text_lower, re.MULTILINE)
+            pts += len(matches) * 0.15  # 0.15 por certificação listada
+    
+    # 3. Bonus por plataformas conhecidas mencionadas
+    platforms = ["coursera", "udemy", "alura", "rocketseat", "dio", "edx", 
+                 "linkedin learning", "pluralsight", "udacity", "skillshare"]
+    for platform in platforms:
+        if platform in text_lower:
+            pts += 0.1
+    
+    return min(pts, 1.0)  # Cap em 1.0
 
 def extract_years_total(text: str) -> float:
     """Extrai anos de experiência com suporte a padrões PT-BR e EN."""
@@ -87,13 +167,6 @@ def extract_seniority_align(text: str, agent: Agent) -> float:
 def extract_projects_hits(text: str) -> int:
     t = text.lower() if text else ""
     return sum(1 for k in ["github.com", "gitlab.com", "kaggle.com", "portfólio", "portfolio", "projeto"] if k in t)
-
-def extract_cert_points(text: str) -> float:
-    if not text: return 0.0
-    pts = 0.0
-    for pat, val in CERT_MAP.items():
-        if re.search(pat, text, flags=re.I): pts += val
-    return min(pts, 1.0)
 
 def extract_metrics_hits(text: str) -> int:
     """Detecção melhorada de métricas de impacto."""
