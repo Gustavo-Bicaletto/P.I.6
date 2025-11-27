@@ -14,6 +14,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 from app.scoring.hybrid_scorer import HybridScorer
 from app.scoring.use_case import build_features_from_doc, build_subscores
 
+try:
+    import PyPDF2
+    PDF_SUPPORT = True
+except ImportError:
+    PDF_SUPPORT = False
+    print("⚠️  PyPDF2 não instalado. Instale com: pip install PyPDF2")
+
 
 def print_header(title: str):
     """Imprime cabeçalho formatado"""
@@ -42,12 +49,30 @@ def format_score(score: float, max_val: float = 1.0) -> str:
     return f"{bar} {percentage:.1f}%"
 
 
+def extract_text_from_pdf(pdf_path: str) -> str:
+    """Extrai texto de um arquivo PDF"""
+    if not PDF_SUPPORT:
+        raise ImportError("PyPDF2 não está instalado. Execute: pip install PyPDF2")
+    
+    text = ""
+    try:
+        with open(pdf_path, 'rb') as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+        return text.strip()
+    except Exception as e:
+        raise Exception(f"Erro ao extrair texto do PDF: {e}")
+
+
 def test_complete_pipeline(resume_path: str):
     """
     Testa pipeline completo do ResumAI - Avaliação de Qualidade
     
     Args:
-        resume_path: Caminho para arquivo .txt do currículo
+        resume_path: Caminho para arquivo .txt ou .pdf do currículo
     """
     
     print_header("🧪 AVALIAÇÃO DE QUALIDADE - ResumAI")
@@ -56,14 +81,28 @@ def test_complete_pipeline(resume_path: str):
     # 1. Carregar currículo
     print_section("1️⃣ Carregando Currículo")
     try:
-        with open(resume_path, 'r', encoding='utf-8') as f:
-            resume_text = f.read()
+        file_extension = Path(resume_path).suffix.lower()
         
-        print(f"✅ Arquivo carregado: {len(resume_text)} caracteres")
+        if file_extension == '.pdf':
+            print("📄 Detectado formato PDF - extraindo texto...")
+            resume_text = extract_text_from_pdf(resume_path)
+            print(f"✅ PDF processado: {len(resume_text)} caracteres extraídos")
+        elif file_extension == '.txt':
+            print("📝 Detectado formato TXT - lendo arquivo...")
+            with open(resume_path, 'r', encoding='utf-8') as f:
+                resume_text = f.read()
+            print(f"✅ Arquivo carregado: {len(resume_text)} caracteres")
+        else:
+            print(f"❌ Formato não suportado: {file_extension}")
+            print("   Formatos aceitos: .pdf, .txt")
+            return
+        
         print(f"📝 Preview (primeiros 200 chars):")
         print(f"   {resume_text[:200]}...")
     except Exception as e:
         print(f"❌ Erro ao carregar arquivo: {e}")
+        import traceback
+        traceback.print_exc()
         return
     
     # Preparar documento (sem vaga - foco em qualidade)
@@ -259,15 +298,18 @@ def main():
         epilog="""
 Exemplos de uso:
 
-  # Avaliar qualidade de um currículo
+  # Avaliar qualidade de um currículo em PDF
+  python test_complete.py curriculo.pdf
+  
+  # Avaliar currículo em TXT
   python test_complete.py curriculo.txt
   
   # Avaliar currículo com caminho específico
-  python test_complete.py "C:\\Users\\Nome\\Desktop\\meu_curriculo.txt"
+  python test_complete.py "C:\\Users\\Nome\\Desktop\\meu_curriculo.pdf"
         """
     )
     
-    parser.add_argument('resume', help='Caminho para arquivo .txt do currículo')
+    parser.add_argument('resume', help='Caminho para arquivo .pdf ou .txt do currículo')
     
     args = parser.parse_args()
     

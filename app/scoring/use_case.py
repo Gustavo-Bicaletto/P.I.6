@@ -92,20 +92,26 @@ def extract_cert_points(text: str) -> float:
     # 2. Detecção genérica de seções de certificação
     has_cert_section = any(keyword in text_lower for keyword in [
         "certificações", "certificados", "cursos", "certifications", 
-        "certificates", "courses", "formação complementar"
+        "certificates", "courses", "formação complementar", "treinamentos"
     ])
     
     if has_cert_section:
-        # Contar linhas com padrões de certificação
+        # Contar linhas com padrões de certificação (mais agressivo)
         cert_patterns = [
-            r"[-–—•]\s*.+?(certificação|certificado|certificate|curso|course)",
-            r"^\s*.+?\s*[-–—]\s*.+?(google|meta|facebook|aws|azure|microsoft|adobe|ibm)",
-            r"\d{4}\s*[-–—]\s*.+?(certificação|certificado|certificate)",
+            r"[-–—•]\s*.+?(certificação|certificado|certificate|curso|course|treinamento)",
+            r"^\s*.+?\s*[-–—]\s*.+?(google|meta|facebook|aws|azure|microsoft|adobe|ibm|oracle|salesforce)",
+            r"\d{4}\s*[-–—]\s*.+?(certificação|certificado|certificate|curso|course)",
+            r"^\s*\d+\.\s*.+?(certificação|certificado|curso|course)",  # Listas numeradas
+            r"^\s*•\s*.+?(certificação|certificado|curso|course)",  # Bullets
         ]
         
+        cert_count = 0
         for pattern in cert_patterns:
             matches = re.findall(pattern, text_lower, re.MULTILINE)
-            pts += len(matches) * 0.15  # 0.15 por certificação listada
+            cert_count += len(matches)
+        
+        # Cada certificação vale 0.2 pontos (5 certificações = 1.0)
+        pts += cert_count * 0.2
     
     # 3. Bonus por plataformas conhecidas mencionadas
     platforms = ["coursera", "udemy", "alura", "rocketseat", "dio", "edx", 
