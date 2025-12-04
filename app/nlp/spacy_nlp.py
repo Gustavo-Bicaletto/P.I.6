@@ -149,13 +149,21 @@ def extract_email(text: str) -> bool:
     return bool(re.search(email_pattern, text))
 
 def extract_phone(text: str) -> bool:
-    """Detecta se há telefone no texto (formatos brasileiros)."""
+    """Detecta se há telefone no texto (formatos brasileiros).
+    
+    Normaliza o texto antes para remover caracteres Unicode extras
+    que podem aparecer na extração de PDFs.
+    """
+    # Normalizar texto: remover espaços extras, tabs, quebras de linha estranhas
+    normalized = ' '.join(text.split())
+    
     phone_patterns = [
-        r'\(\d{2}\)\s*\d{4,5}-?\d{4}',  # (11) 98765-4321 ou (11) 8765-4321
-        r'\d{2}[\ ]?\d{4,5}-?\d{4}',    # 11 98765-4321 ou 1198765-4321
-        r'\+55\s*\d{2}\s*\d{4,5}-?\d{4}', # +55 11 98765-4321
+        r'\(\d{2}\)\s*\d{4,5}\s*[-\s]?\s*\d{4}',  # (11) 98765-4321 ou (11) 98765 -4321 (PDF)
+        r'\d{2}[\s.-]?\d{4,5}\s*[-\s]?\s*\d{4}',  # 11 98765-4321 ou 11 98765 -4321
+        r'\+55[\s.-]?\d{2}[\s.-]?\(?\d{2}\)?[\s.-]?\d{4,5}\s*[-\s]?\s*\d{4}',  # +55 11 98765-4321 ou +55 (11) 98765 -4321
+        r'\d{10,11}',  # 11987654321 (formato sem separadores)
     ]
-    return any(re.search(pattern, text) for pattern in phone_patterns)
+    return any(re.search(pattern, normalized) for pattern in phone_patterns)
 
 def count_sections(text: str) -> int:
     """Conta seções importantes do currículo (PT-BR + EN)."""

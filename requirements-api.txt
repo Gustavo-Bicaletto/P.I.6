@@ -4,6 +4,10 @@ uvicorn[standard]==0.27.0
 pydantic==2.5.3
 python-multipart==0.0.6
 
+# Flask para Interface Web
+flask==3.0.0
+werkzeug==3.0.1
+
 # Já existentes no requirements.txt principal
 # pymongo
 # sentence-transformers

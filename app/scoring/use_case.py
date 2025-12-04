@@ -123,13 +123,25 @@ def extract_cert_points(text: str) -> float:
     return min(pts, 1.0)  # Cap em 1.0
 
 def extract_years_total(text: str) -> float:
-    """Extrai anos de experiência com suporte a padrões PT-BR e EN."""
+    """Extrai anos de experiência com suporte a padrões PT-BR e EN.
+    
+    Evita capturar idade ao buscar contexto de experiência profissional.
+    """
     if not text: return 0.0
     yrs = 0.0
     
-    # Padrão explícito: "X anos" ou "X years"
-    for m in re.finditer(r"\b(\d+(?:\.\d+)?)\s*(anos?|years?)\b", text, flags=re.I):
-        yrs = max(yrs, float(m.group(1)))
+    # Padrão explícito com contexto: "X anos de experiência", "X years of experience", etc.
+    # Inclui variações comuns em português e inglês
+    experience_patterns = [
+        r"\b(\d+(?:\.\d+)?)\s*(?:anos?|years?)\s+de\s+(?:experiência|experiencia|experience)",
+        r"\b(?:experiência|experiencia|experience)\s+de\s+(\d+(?:\.\d+)?)\s*(?:anos?|years?)",
+        r"\b(\d+(?:\.\d+)?)\+?\s*(?:anos?|years?)\s+(?:na\s+área|no\s+mercado|atuando|trabalhando|em\s+TI|em\s+tecnologia)",
+        r"\b(?:com|possuo|tenho)\s+(\d+(?:\.\d+)?)\s*(?:anos?|years?)\s+de\s+(?:experiência|experiencia|experience)",
+    ]
+    
+    for pattern in experience_patterns:
+        for m in re.finditer(pattern, text, flags=re.I):
+            yrs = max(yrs, float(m.group(1)))
     
     # Intervalos: "2019-2023", "2019 - 2023", "2019 – atual"
     for m in re.finditer(r"\b(19|20)\d{2}\s*[-–—]\s*((19|20)\d{2}|presente|atual|hoje|current|present)\b", text, flags=re.I):
